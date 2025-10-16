@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Proof of Purchase: A Narrative Platformer</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace; /* Classic game font */
+            background-color: #222; /* Dark background for contrast */
+            color: #E0E0E0;
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 30px;
+            border: 5px solid #ffcc00; /* Coin yellow border */
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+        }
+        #game-container {
+            padding: 10px;
+        }
+        h1 {
+            color: #ff4500; /* Mario Red */
+            text-align: center;
+            border-bottom: 2px dashed #ffcc00;
+            padding-bottom: 15px;
+            font-size: 2.5em;
+        }
+        /* Narrator/Instruction Box - Simulating an in-game HUD message */
+        .narrator-box {
+            border: 3px solid #00bfff; /* Sky blue */
+            padding: 15px;
+            margin-bottom: 30px;
+            background-color: #002244;
+            color: #00bfff;
+            border-radius: 8px;
+            font-style: italic;
+            font-size: 1.1em;
+        }
+        /* Item Display - Visual feedback for collected items/points */
+        #feedback-log {
+            min-height: 40px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ffcc00;
+            background-color: #333;
+        }
+        .stats-display {
+            font-size: 1.3em;
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 3px solid #ff4500;
+            background-color: #550000;
+            text-align: center;
+            font-weight: bold;
+        }
+        .choice-button {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            margin-bottom: 12px;
+            background-color: #444;
+            color: #ffcc00;
+            border: 2px solid #ffcc00;
+            text-align: left;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.1s, color 0.1s;
+        }
+        /* Hover effect simulates hitting a block */
+        .choice-button:hover {
+            background-color: #ffcc00;
+            color: #222;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(255, 204, 0, 0.5);
+        }
+        /* Visual cues for point types */
+        .beat-item { color: #00bfff; font-weight: bold; }
+        .adult-trap { color: #ff4500; font-weight: bold; }
+
+        .ending-box {
+            padding: 40px;
+            border: 5px solid;
+            margin-top: 30px;
+            text-align: center;
+        }
+        .ending-beat { border-color: #00ff7f; background-color: #00331a; color: #00ff7f; }
+        .ending-phony { border-color: #777; background-color: #444; color: #777; }
+        .ending-stalled { border-color: #ff8c00; background-color: #4d2600; color: #ff8c00; }
+        .ending-box h2 {
+            margin-top: 0;
+            color: inherit;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>The Proof of Purchase: A Narrative Platformer</h1>
+        <div id="narrator-dialogue"></div>
+        
+        <div class="stats-display" id="stats">
+            Beat Points: 0 | Adult Points: 0
+        </div>
+
+        <div id="feedback-log">
+            </div>
+        
+        <div id="game-content">
+            </div>
+
+    </div>
+
+    <script>
+        // --- GAME LOGIC (JAVASCRIPT) ---
+
+        let beat_points = 0;
+        let adult_points = 0;
+        const contentDiv = document.getElementById('game-content');
+        const statsDiv = document.getElementById('stats');
+        const dialogueDiv = document.getElementById('narrator-dialogue');
+        const feedbackDiv = document.getElementById('feedback-log');
+
+        // --- NARRATOR DIALOGUE LINES (The Player's Guide) ---
+        const narratorLines = {
+            'start': "Welcome, player. This is World 1-1: Maturation. The goal isn't to reach the flag, but to choose your currency. Collect **Authenticity** (Beat) or **Conformity** (Adult).",
+            'stage1': "LEVEL 1-1: THE HIGH SCHOOL MAZE. Jump on the Goombas (phonies) and avoid the toxic items. Your first choice is now.",
+            's1_c1A': "<p class='adult-trap'>AVOIDED! You dodged the Catcher's Mitt. Safety first. **+1 Adult Point.**</p>",
+            's1_c1B': "<p class='beat-item'>COLLECTED! You grabbed the Catcher's Mitt! It feels real. **+1 Beat Point.**</p>",
+            
+            'stage2': "LEVEL 2-1: THE COLLEGE APPLICATION. Watch the gaps! Every step is a high-stakes trade-off. What's the cost of your future?",
+            's2_c2A': "<p class='adult-trap'>COLLECTED! The Student Loan Form is heavy, but secure. **+1 Adult Point.**</p>",
+            's2_c2B': "<p class='beat-item'>COLLECTED! The Coffee Shop Notebook is full of voice. **+1 Beat Point.**</p>",
+            
+            'stage3': "LEVEL 3-1: THE FIRST JOB GRIND. The Cubicle Walls are brick blocks. They offer shelter, but they hide the true path. Smash them or hide behind them?",
+            's3_c3A': "<p class='adult-trap'>HIDDEN! You blended with the Cubicle Walls. **+1 Adult Point.**</p>",
+            's3_c3B': "<p class='beat-item'>GRABBED! The Kerouac Scroll is raw power. **+1 Beat Point.**</p>",
+            
+            'stage4': "LEVEL 4-1: THE PAST'S GAUNTLET. This is the final stage. Your past is your power-up. Don't discard it for the quick fix.",
+            's4_c4A': "<p class='adult-trap'>PAID! The Therapy Bill is processed. Clean closure. **+1 Adult Point.**</p>",
+            's4_c4B': "<p class='beat-item'>OWNED! The Childhood Relic is integrated. **+1 Beat Point.**</p>",
+
+            'ending': "GAME OVER. You have completed the run. Time to tally the final score. Did you save the day, or just buy the script?"
+        };
+
+        // --- GAME DATA: STAGES ---
+        const scenes = {
+            'start': {
+                text: `
+                    <p>The journey of maturation is a high-stakes, multi-level platformer defined by the tension between **Authenticity (Beat Points)** and **Conformity (Adult Points)**.</p>
+                    <p>You have 4 levels to complete. Every action is a jump, a smash, or a dodge. Collect Beat Items to gain **Voice**. Avoid Adult Traps to maintain **Self**.</p>
+                `,
+                choices: [
+                    { text: "PRESS START: Begin World 1-1", nextScene: 'stage1' }
+                ]
+            },
+            
+            // --- STAGE 1: HIGH SCHOOL MAZE ---
+            'stage1': {
+                text: `
+                    <h2>[Level 1-1] The High School Maze</h2>
+                    <p>You are moving through the crowded hallway. Up ahead, a <span class="beat-item">Catcher's Mitt</span> (Authenticity item) is dropped. It represents vulnerability and the real self. To grab it, you must openly defy the popular group.</p>
+                    <p>Alternatively, you can collect the <span class="adult-trap">Prep School Tie</span> (Conformity trap) lying nearby and hand it to a teacher, gaining favor.</p>
+                `,
+                choices: [
+                    { text: "ACTION A: Collect the Catcher's Mitt (Authenticity +1)", nextScene: 's1_c1B', points: { beat: 1 } },
+                    { text: "ACTION B: Collect and submit the Prep School Tie (Conformity +1)", nextScene: 's1_c1A', points: { adult: 1 } }
+                ]
+            },
+            's1_c1A': { text: ``, choices: [{ text: "Proceed to Level 2-1", nextScene: 'stage2' }] },
+            's1_c1B': { text: ``, choices: [{ text: "Proceed to Level 2-1", nextScene: 'stage2' }] },
+
+            // --- STAGE 2: COLLEGE APPLICATION ---
+            'stage2': {
+                text: `
+                    <h2>[Level 2-1] The College Application Level</h2>
+                    <p>You have a choice of power-ups. You can spend the weekend on the raw, honest essay in your <span class="beat-item">Coffee Shop Notebook</span> (Voice). This path is chaotic but truthful.</p>
+                    <p>OR: You can finalize the <span class="adult-trap">Student Loan Form</span> (Security Trap), which locks you into a decade of career-focused debt but guarantees safety.</p>
+                `,
+                choices: [
+                    { text: "ACTION A: Focus on the Coffee Shop Notebook (Authenticity +1)", nextScene: 's2_c2B', points: { beat: 1 } },
+                    { text: "ACTION B: Finalize the Student Loan Form (Conformity +1)", nextScene: 's2_c2A', points: { adult: 1 } }
+                ]
+            },
+            's2_c2A': { text: ``, choices: [{ text: "Proceed to Level 3-1", nextScene: 'stage3' }] },
+            's2_c2B': { text: ``, choices: [{ text: "Proceed to Level 3-1", nextScene: 'stage3' }] },
+
+            // --- STAGE 3: FIRST JOB GRIND ---
+            'stage3': {
+                text: `
+                    <h2>[Level 3-1] The First Job Grind</h2>
+                    <p>You are trapped in the office basement. You find a <span class="beat-item">Kerouac Scroll</span> (Beat Spirit), a message of rebellion and freedom. It's a high-value item.</p>
+                    <p>To safely secure it, you must push over a <span class="adult-trap">Cubicle Wall</span> (Isolation), risking your standing, or leave the Scroll and stay put for maximum security.</p>
+                `,
+                choices: [
+                    { text: "ACTION A: Take the Scroll, ignore the Wall (Authenticity +1)", nextScene: 's3_c3B', points: { beat: 1 } },
+                    { text: "ACTION B: Protect the Cubicle Wall (Conformity +1)", nextScene: 's3_c3A', points: { adult: 1 } }
+                ]
+            },
+            's3_c3A': { text: ``, choices: [{ text: "Proceed to Level 4-1", nextScene: 'stage4' }] },
+            's3_c3B': { text: ``, choices: [{ text: "Proceed to Level 4-1", nextScene: 'stage4' }] },
+
+            // --- STAGE 4: PAST'S GAUNTLET ---
+            'stage4': {
+                text: `
+                    <h2>[Level 4-1] The Past's Gauntlet</h2>
+                    <p>You encounter a traumatic memory. You can spend weeks integrating a **"Where I'm From"** essay about a <span class="beat-item">Childhood Relic</span> (Foundational Self). This requires difficult reflection.</p>
+                    <p>OR: You can take the easy path and pay the <span class="adult-trap">Therapy Bill</span> for a "quick fix" closure, discarding the memory entirely.</p>
+                `,
+                choices: [
+                    { text: "ACTION A: Write the Relic story (Authenticity +1)", nextScene: 's4_c4B', points: { beat: 1 } },
+                    { text: "ACTION B: Pay the quick-fix Therapy Bill (Conformity +1)", nextScene: 's4_c4A', points: { adult: 1 } }
+                ]
+            },
+            's4_c4A': { text: ``, choices: [{ text: "REACH THE FLAGPOLE: View Final Score", nextScene: 'ending' }] },
+            's4_c4B': { text: ``, choices: [{ text: "REACH THE FLAGPOLE: View Final Score", nextScene: 'ending' }] },
+
+            // --- ENDING ---
+            'ending': {
+                text: '', 
+                choices: []
+            }
+        };
+
+        // --- GAME FUNCTIONS ---
+
+        function updateStats() {
+            statsDiv.innerHTML = `**BEAT (Authenticity): ${beat_points}** | **ADULT (Conformity): ${adult_points}**`;
+        }
+        
+        function narratorCommentary(sceneKey) {
+            const line = narratorLines[sceneKey];
+            dialogueDiv.innerHTML = `<div class="narrator-box">**[H.U.D. Message]** ${line}</div>`;
+        }
+        
+        function feedback(sceneKey) {
+             const line = narratorLines[sceneKey];
+             feedbackDiv.innerHTML = line;
+        }
+
+        function navigate(sceneKey) {
+            let scene = scenes[sceneKey];
+            
+            // Update HUD Message
+            if (narratorLines[sceneKey]) {
+                narratorCommentary(sceneKey); 
+            } else {
+                dialogueDiv.innerHTML = '';
+            }
+            
+            contentDiv.innerHTML = scene.text;
+
+            if (sceneKey === 'ending') {
+                displayEnding();
+                return;
+            }
+
+            // Clear feedback for new stage text
+            if (sceneKey.startsWith('stage')) {
+                feedbackDiv.innerHTML = '';
+            }
+
+            scene.choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.className = 'choice-button';
+                button.textContent = choice.text;
+                button.onclick = () => handleChoice(choice);
+                contentDiv.appendChild(button);
+            });
+
+            updateStats();
+        }
+
+        function handleChoice(choice) {
+            let nextSceneKey = choice.nextScene;
+            
+            if (choice.points) {
+                if (choice.points.beat) {
+                    beat_points += choice.points.beat;
+                }
+                if (choice.points.adult) {
+                    adult_points += choice.points.adult;
+                }
+                // Show immediate feedback log for the item/trap
+                feedback(nextSceneKey);
+            }
+            
+            // Navigate to the next stage description after the feedback
+            // Wait for one second to let the feedback sink in before moving on
+            setTimeout(() => {
+                navigate(nextSceneKey);
+            }, 100);
+        }
+
+        function displayEnding() {
+            let resultHTML = '';
+            let className = '';
+            let finalMessage = narratorLines['ending'];
+
+            if (beat_points > adult_points) {
+                className = 'ending-beat';
+                resultHTML = `
+                    <h2>🏆 THE BEATNIK ENDING: THE TRUE VOICE 🏆</h2>
+                    <p>You finished with **${beat_points} Beat Points**. You defied the phonies, embraced the chaotic risk, and secured your **Voice**. Your path is difficult, but your self is uncompromised. **Proof of Purchase: Authenticity.**</p>
+                `;
+            } else if (adult_points > beat_points) {
+                className = 'ending-phony';
+                resultHTML = `
+                    <h2>💀 THE PHONY ENDING: THE BAFFLING ADULT 💀</h2>
+                    <p>You finished with **${adult_points} Adult Points**. You followed the script, collected the ties and bills, and found security. You are the 'baffling adult'—safe, successful, and hollow. **Proof of Purchase: Conformity.**</p>
+                `;
+            } else {
+                className = 'ending-stalled';
+                resultHTML = `
+                    <h2>❓ THE STALLED SELF ENDING ❓</h2>
+                    <p>You finished with **${beat_points} Points Each**. You could not commit. You are caught in the rye, unable to choose between freedom and security. **Proof of Purchase: Indecision.**</p>
+                `;
+            }
+
+            dialogueDiv.innerHTML = `<div class="narrator-box">${finalMessage}</div>`;
+            contentDiv.innerHTML = `<div class="ending-box ${className}">${resultHTML}</div>`;
+            feedbackDiv.innerHTML = ''; // Clear action log
+
+            const restartButton = document.createElement('button');
+            restartButton.className = 'choice-button';
+            restartButton.style.marginTop = '20px';
+            restartButton.textContent = "Start a New Game / New Life";
+            restartButton.onclick = () => {
+                beat_points = 0;
+                adult_points = 0;
+                navigate('start');
+            };
+            contentDiv.appendChild(restartButton);
+
+            updateStats();
+        }
+
+        // --- INITIALIZE GAME ---
+        document.addEventListener('DOMContentLoaded', () => {
+            navigate('start');
+        });
+    </script>
+</body>
+</html>
